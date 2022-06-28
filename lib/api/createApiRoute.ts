@@ -21,4 +21,11 @@ export const createApiRoute = createApiRouteCreator({
   },
   // Apply global middleware
   middleware: [corsMiddleware, loggerMiddleware],
+  handleError(req, res, error) {
+    if (typeof error === "string") {
+      return res.status(400).send({ message: error });
+    }
+
+    res.status(400).send({ message: "Something wen't wrong!" });
+  },
 });

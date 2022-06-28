@@ -5,6 +5,7 @@ type CreateApiRouteCreatorArgs<Context> = {
   createContext(req: Req, res: Res): Context;
   unimplementedMethod: (req: Req, res: Res, ctx: Context) => any;
   middleware?: Array<(req: Req, res: Res) => Promise<void>>;
+  handleError?: (req: Req, res: Res, error: unknown) => void;
 };
 
 type CreateApiRouteArgs<Context> = {
@@ -23,32 +24,37 @@ export function createApiRouteCreator<Context>(
   return function createApiRoute(options: CreateApiRouteArgs<Context>) {
     // The route handler
     return async function handler(req: Req, res: Res) {
-      // Get all global and local middleware
-      const middleware = [
-        ...(args.middleware ?? []),
-        ...(options.middleware ?? []),
-      ];
+      try {
+        // Get all global and local middleware
+        const middleware = [
+          ...(args.middleware ?? []),
+          ...(options.middleware ?? []),
+        ];
 
-      // Run each middleware in sequence
-      for await (const mw of middleware) {
-        await mw(req, res);
+        // Run each middleware in sequence
+        for await (const mw of middleware) {
+          await mw(req, res);
+        }
+
+        // Create the context object
+        const context = args.createContext(req, res);
+
+        // Ensure method is an allowed method and use the correct handler.
+        // If no handler
+        const _method = req.method?.toLowerCase();
+
+        // Use the correct handler based on the method or use the unimplemented
+        // handler, when no handler available for method.
+        const handler = isAllowedMethod(_method)
+          ? options[_method] ?? args.unimplementedMethod
+          : args.unimplementedMethod;
+
+        // Run the handler with context
+        await handler(req, res, context);
+      } catch (error: unknown) {
+        // If an error handler exists, call it
+        args.handleError?.(req, res, error);
       }
-
-      // Create the context object
-      const context = args.createContext(req, res);
-
-      // Ensure method is an allowed method and use the correct handler.
-      // If no handler
-      const _method = req.method?.toLowerCase();
-
-      // Use the correct handler based on the method or use the unimplemented
-      // handler, when no handler available for method.
-      const handler = isAllowedMethod(_method)
-        ? options[_method] ?? args.unimplementedMethod
-        : args.unimplementedMethod;
-
-      // Run the handler with context
-      await handler(req, res, context);
     };
   };
 }
