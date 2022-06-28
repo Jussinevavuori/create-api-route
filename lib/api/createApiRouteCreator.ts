@@ -4,10 +4,13 @@ import { AllowedMethod, isAllowedMethod } from "./allowedMethods";
 type CreateApiRouteCreatorArgs<Context> = {
   createContext(req: Req, res: Res): Context;
   unimplementedMethod: (req: Req, res: Res, ctx: Context) => any;
+  middleware?: Array<(req: Req, res: Res) => Promise<void>>;
 };
 
 type CreateApiRouteArgs<Context> = {
   [method in AllowedMethod]?: (req: Req, res: Res, ctx: Context) => any;
+} & {
+  middleware?: Array<(req: Req, res: Res) => Promise<void>>;
 };
 
 // The main constructor function which is used to construct our createApiRoute
@@ -20,6 +23,17 @@ export function createApiRouteCreator<Context>(
   return function createApiRoute(options: CreateApiRouteArgs<Context>) {
     // The route handler
     return async function handler(req: Req, res: Res) {
+      // Get all global and local middleware
+      const middleware = [
+        ...(args.middleware ?? []),
+        ...(options.middleware ?? []),
+      ];
+
+      // Run each middleware in sequence
+      for await (const mw of middleware) {
+        await mw(req, res);
+      }
+
       // Create the context object
       const context = args.createContext(req, res);
 

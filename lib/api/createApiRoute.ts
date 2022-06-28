@@ -1,5 +1,14 @@
 import { createApiRouteCreator } from "./createApiRouteCreator";
 import { fakeDb } from "./fakeDb";
+import initMiddleware from "./initMiddleware";
+import Cors from "cors";
+import { NextApiRequest } from "next";
+
+// Define new middleware
+const corsMiddleware = initMiddleware(Cors());
+const loggerMiddleware = async (req: NextApiRequest) => {
+  console.log("Incoming", req.method, "request");
+};
 
 export const createApiRoute = createApiRouteCreator({
   unimplementedMethod(req, res) {
@@ -10,4 +19,6 @@ export const createApiRoute = createApiRouteCreator({
       db: fakeDb,
     };
   },
+  // Apply global middleware
+  middleware: [corsMiddleware, loggerMiddleware],
 });

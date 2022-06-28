@@ -7,4 +7,9 @@ export default createApiRoute({
   async post(req, res) {
     res.status(201).json({ message: "Thank you!" });
   },
+  middleware: [
+    async (req, res) => {
+      console.log("Called local middleware");
+    },
+  ],
 });
